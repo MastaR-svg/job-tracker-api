@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.env.*
+uploads
+logs
+coverage
+.git
+.gitignore
+*.md
+npm-debug.log*
+.nyc_output
+src/__tests__
+jest.config.js
+nodemon.json

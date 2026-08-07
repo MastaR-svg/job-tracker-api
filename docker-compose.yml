@@ -1,0 +1,102 @@
+# ============================================================
+# Docker Compose — Full Stack Development Environment
+# Runs API + MongoDB + Redis together with one command:
+#   docker compose up
+# ============================================================
+
+version: "3.9"
+
+services:
+
+  # ── API Server ─────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: jat-api
+    ports:
+      - "5000:5000"         # host:container
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      # Use service names as hostnames — not localhost
+      MONGODB_URI: mongodb://mongodb:27017/job-tracker
+      REDIS_URL: redis://redis:6379
+      # Secrets — override these in production via .env file or secrets manager
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      ACCESS_TOKEN_EXPIRES_IN: ${ACCESS_TOKEN_EXPIRES_IN:-15m}
+      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-7d}
+      BCRYPT_SALT_ROUNDS: ${BCRYPT_SALT_ROUNDS:-10}
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.ethereal.email}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Job Tracker <noreply@jobtracker.com>}
+    volumes:
+      # Mount uploads directory so files persist across container restarts
+      - uploads_data:/app/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy    # wait for MongoDB to be ready
+      redis:
+        condition: service_healthy    # wait for Redis to be ready
+    restart: unless-stopped
+    networks:
+      - jat-network
+
+  # ── MongoDB ────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7-jammy
+    container_name: jat-mongodb
+    ports:
+      - "27017:27017"       # expose for local tools (Compass, mongosh)
+    volumes:
+      - mongodb_data:/data/db   # persist data across restarts
+    environment:
+      # Remove these for public deployments — add auth instead
+      MONGO_INITDB_DATABASE: job-tracker
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - jat-network
+
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: jat-redis
+    ports:
+      - "6379:6379"         # expose for local redis-cli
+    volumes:
+      - redis_data:/data    # persist data across restarts
+    command: redis-server --appendonly yes  # enable persistence
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - jat-network
+
+# ── Volumes ────────────────────────────────────────────────────
+# Named volumes managed by Docker — persist data outside containers
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+# ── Network ────────────────────────────────────────────────────
+networks:
+  jat-network:
+    driver: bridge
