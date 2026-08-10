@@ -34,7 +34,6 @@ export const mockUser: PublicUser = {
   username: "testuser",
   createdAt: new Date("2026-06-01"),
   updatedAt: new Date("2026-06-01"),
-  passwordHash: "",
 };
 
 export const mockAuthResponse: AuthResponse = {
