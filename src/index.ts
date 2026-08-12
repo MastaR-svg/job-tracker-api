@@ -10,7 +10,7 @@ async function bootstrap(): Promise<void> {
 
   const app = createApp();
 
-  const server = app.listen(env.port, () => {
+  const server = app.listen(env.port, "0.0.0.0", () => {
     logger.info(`🚀 Server running on http://localhost:${env.port}`);
     logger.info(`📍 Environment: ${env.nodeEnv}`);
     logger.info(`❤️  Health check: http://localhost:${env.port}/health`);
