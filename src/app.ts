@@ -9,6 +9,9 @@ import { requestLogger } from "./middleware/requestLogger";
 import path from "path";
 import uploadRoutes from "./routes/upload.routes";
 import cookieParser from "cookie-parser";
+import { env } from "./config/env";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./config/swagger";
 
 export function createApp(): Application {
   const app: Application = express();
@@ -16,13 +19,18 @@ export function createApp(): Application {
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: "cross-origin" },
+      contentSecurityPolicy: false,
     }),
   );
 
   app.use(
     cors({
       origin: (origin, callback) => {
-        const allowed = ["http://localhost:3000", "http://localhost:5173"];
+        const allowed = [
+          "http://localhost:3000",
+          "http://localhost:5173",
+          "https://job-tracker-api-production-5674.up.railway.app",
+        ];
         if (!origin || allowed.includes(origin)) {
           callback(null, true);
         } else {
@@ -52,10 +60,33 @@ export function createApp(): Application {
     }),
   );
 
+  // Swagger UI
+
+  app.use(
+    "/api/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      swaggerOptions: {
+        persistAuthorization: true, // remembers token between page refreshes
+        displayRequestDuration: true,
+        filter: true,
+      },
+    }),
+  );
+
+  // Serve raw OpenAPI spec as JSON (useful for Postman import)
+  app.get("/api/docs.json", (_req: Request, res: Response) => {
+    res.setHeader("Content-Type", "application/json");
+    res.send(swaggerSpec);
+  });
+
   app.get("/health", (_req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       message: "Server is healthy",
+      environment: env.nodeEnv,
+      timestamp: new Date().toISOString(),
+      docs: `http://localhost:${env.port}/api/docs`,
     });
   });
 
