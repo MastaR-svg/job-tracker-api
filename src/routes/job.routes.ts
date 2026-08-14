@@ -14,10 +14,6 @@ import {
 import { validate } from "../middleware/validate";
 import { MongoUserRepository } from "../repositories/user.repository";
 
-// Manual Dependency Injection (composition root)
-// This is the ONE place where concrete classes are wired together.
-// Everywhere else only sees interfaces.
-
 const jobRepository = new MongoJobRepository();
 const userRepository = new MongoUserRepository();
 const jobService = new JobService(jobRepository, userRepository);
@@ -31,6 +27,69 @@ const router = Router();
  *   name: Jobs
  *   description: Job application management
  */
+
+router.use(protect);
+
+/**
+ * @swagger
+ * /api/jobs/dashboard:
+ *   get:
+ *     summary: Get dashboard analytics
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/DashboardStats'
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/dashboard", asyncHandler(jobController.getDashboard));
+
+/**
+ * @swagger
+ * /api/jobs/stats:
+ *   get:
+ *     summary: Get job status counts
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Status breakdown counts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         applied:
+ *                           type: integer
+ *                         interview:
+ *                           type: integer
+ *                         assessment:
+ *                           type: integer
+ *                         offer:
+ *                           type: integer
+ *                         rejected:
+ *                           type: integer
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/stats", asyncHandler(jobController.getStats));
 
 /**
  * @swagger
@@ -63,7 +122,7 @@ const router = Router();
  *         name: search
  *         schema:
  *           type: string
- *         description: Search across company, position, location, notes
+ *         description: Full-text search across company, position, location, notes
  *       - in: query
  *         name: sortBy
  *         schema:
@@ -102,76 +161,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-
-// All job routes are protected — protect runs before every handler
-router.use(protect);
-
-/**
- * @swagger
- * /api/jobs/dashboard:
- *   get:
- *     summary: Get dashboard analytics
- *     tags: [Jobs]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Dashboard statistics
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/DashboardStats'
- *       401:
- *         description: Unauthorized
- */
-
-router.get("/dashboard", asyncHandler(jobController.getDashboard));
-
-/**
- * @swagger
- * /api/jobs/stats:
- *   get:
- *     summary: Get job status counts
- *     tags: [Jobs]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Status breakdown counts
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         applied:
- *                           type: integer
- *                         interview:
- *                           type: integer
- *                         assessment:
- *                           type: integer
- *                         offer:
- *                           type: integer
- *                         rejected:
- *                           type: integer
- */
-router.get("/stats", asyncHandler(jobController.getStats));
-
-router.get(
-  "/",
-  jobQueryValidators,
-  validate,
-  asyncHandler(jobController.getAll),
-);
+router.get("/", jobQueryValidators, validate, asyncHandler(jobController.getAll));
 
 /**
  * @swagger
@@ -259,6 +249,8 @@ router.get(
  *         description: Unauthorized
  */
 router.get("/:id", asyncHandler(jobController.getById));
+router.patch("/:id", updateJobValidators, validate, asyncHandler(jobController.update));
+router.delete("/:id", asyncHandler(jobController.delete));
 
 /**
  * @swagger
@@ -291,72 +283,6 @@ router.get("/:id", asyncHandler(jobController.getById));
  *       401:
  *         description: Unauthorized
  */
-router.post(
-  "/",
-  createJobValidators,
-  validate,
-  asyncHandler(jobController.create),
-);
-
-/**
- * @swagger
- * /api/jobs/{id}/resume:
- *   post:
- *     summary: Upload a resume for a job application
- *     tags: [Jobs]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               resume:
- *                 type: string
- *                 format: binary
- *                 description: PDF, DOC, or DOCX file (max 5MB)
- *     responses:
- *       200:
- *         description: Resume uploaded successfully
- *       400:
- *         description: Invalid file type or no file provided
- *       404:
- *         description: Job not found
- *       401:
- *         description: Unauthorized
- *   delete:
- *     summary: Remove resume from a job application
- *     tags: [Jobs]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Resume deleted successfully
- *       404:
- *         description: Resume or job not found
- *       401:
- *         description: Unauthorized
- */
-router.patch(
-  "/:id",
-  updateJobValidators,
-  validate,
-  asyncHandler(jobController.update),
-);
-router.delete("/:id", asyncHandler(jobController.delete));
+router.post("/", createJobValidators, validate, asyncHandler(jobController.create));
 
 export default router;
