@@ -30,6 +30,7 @@ export function createApp(): Application {
           "http://localhost:3000",
           "http://localhost:5173",
           "https://job-tracker-api-production-5674.up.railway.app",
+          "https://job-tracker-ui-iota.vercel.app/"
         ];
         if (!origin || allowed.includes(origin)) {
           callback(null, true);
