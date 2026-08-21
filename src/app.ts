@@ -32,7 +32,10 @@ export function createApp(): Application {
           "https://job-tracker-api-production-5674.up.railway.app",
           "https://job-tracker-ui-iota.vercel.app/"
         ];
-        if (!origin || allowed.includes(origin)) {
+
+        const isVercel = origin?.endsWith(".vercel.app")
+
+        if (!origin || allowed.includes(origin) || isVercel) {
           callback(null, true);
         } else {
           callback(new Error("Not allowed by CORS"));
